@@ -1,5 +1,7 @@
 import requests
 import time
+
+ERROR_STRING = '"ERROR, event logged"'
 OSCAR_API_BASE_URL = 'http://burdellanswers.com:3000/api/oscar/'
 DEPARTMENTS = { 'ACCT' : 'Accounting',
                 'AE'   : 'Aerospace Engineering',
@@ -163,11 +165,12 @@ class OscarCourseSchedule:
         
 
 def get_courses_by_department(department):
-    out_list = []
     course_list = _get_courses_by_department(department)
     for course in course_list:
-        out_list.append(OscarCourse(department, course['number']))
-    return out_list
+        yield OscarCourse(department, course['number'])
+
+def get_course_info(department, course_number):
+    return OscarCourse(department, course_number)
         
 # this is a "private" function and shouldn't be used outside this file. The above
 # function wraps this functionality for outside use.
@@ -177,6 +180,8 @@ def _get_courses_by_department(department):
     response = requests.get(OSCAR_API_BASE_URL + department.lower())
     if response.status_code >= 300:
         raise OscarException('HTTP response had status code > 300: {}'.format(response.status_code))
+    if response.text == ERROR_STRING:
+        raise OscarException('OSCAR replied with an error message')
     course_list = response.json()
     return course_list
 
@@ -186,6 +191,8 @@ def _get_course_info(department, course_number):
     response = requests.get(OSCAR_API_BASE_URL + department.lower() + "/" + course_number)
     if response.status_code >= 300:
         raise OscarException('HTTP response had status code > 300: {}'.format(response.status_code))
+    if response.text == ERROR_STRING:
+        raise OscarException('No such course exists: {} {}'.format(department, course_number))
     class_info = response.json()
     return class_info
 
@@ -198,6 +205,8 @@ def _get_course_sections(department, course_number, year, semester):
                                                                       year, semester))
     if response.status_code >= 300:
         raise OscarException('HTTP response had status code > 300: {}'.format(response.status_code))
+    if response.text == ERROR_STRING:
+        raise OscarException('OSCAR replied with an error message')
     course_sections = response.json()
     return course_sections
 
@@ -210,5 +219,7 @@ def _get_crn_info(department, course_number, year, semester, crn_number):
                                                                          year, semester, crn_number))
     if response.status_code >= 300:
         raise OscarException('HTTP response had status code > 300: {}'.format(response.status_code))
+    if response.text == ERROR_STRING:
+        raise OscarException('OSCAR replied with an error message, most likely the CRN is incorrect: {}'.format(crn_number))
     crn_info = response.json()
     return crn_info
