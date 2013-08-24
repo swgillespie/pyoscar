@@ -10,7 +10,7 @@ DEPARTMENTS = { 'ACCT' : 'Accounting',
                 'ASE'  : 'Applied Systems Engineering',
                 'ARBC' : 'Arabic',
                 'ARCH' : 'Architecture',
-                'BIOL'  : 'Biology',
+                'BIOL' : 'Biology',
                 'BMEJ' : 'Biomedical Engineering Joint Emory PKU',
                 'BME'  : 'Biomedical Engineering',
                 'BMEM' : 'Biomedical Engineering Joint Emory',
@@ -101,6 +101,9 @@ class OscarCourse:
         self.lecture_hours = info_dict['lectureHours'][0] or 0
         self.name = info_dict['name']
 
+    def __repr__(self):
+        return '<OscarCourse instance, course={} {}: "{}">'.format(self.department, self.course_number, self.name)
+
     def get_sections(self, year, semester):
         sections_dict = _get_course_sections(self.department, self.course_number,
                                              year, semester)
@@ -129,6 +132,9 @@ class OscarCourseSection:
         self.section = info_dict['section']
         self.schedule = OscarCourseSchedule(location_list)
 
+    def __repr__(self):
+        return "<OscarCourseSection instance, course={} {}, crn={}>".format(self.department, self.course_number, self.crn)
+
     def refresh_seats_and_waitlist(self):
         info_dict = _get_crn_info(self.department, self.course_number,
                                   self.year, self.semester, self.crn)
@@ -138,6 +144,42 @@ class OscarCourseSection:
         self.waitlist_total = info_dict['waitlist']['capacity']
         self.waitlist_filled = info_dict['waitlist']['actual']
         self.waitlist_remaining = info_dict['waitlist']['remaining']
+
+    def get_class_times(self):
+        out_list = []
+        for entry in self.schedule.class_list:
+            out_list.append((entry['type'], (time.strftime('%H:%M', entry['start_time']),
+                                       time.strftime('%H:%M', entry['end_time']))))
+        return out_list
+
+    def get_class_locations(self):
+        out_list = []
+        for entry in self.schedule.class_list:
+            out_list.append((entry['type'], entry['location']))
+        return out_list
+
+    def get_class_days(self):
+        out_list = []
+        for entry in self.schedule.class_list:
+            out_list.append((entry['type'], entry['days']))
+        return out_list
+
+    def get_class_professors(self):
+        out_list = []
+        for entry in self.schedule.class_list:
+            out_list.append((entry['type'], entry['professor']))
+        return out_list
+
+    def is_in_class_at_time(self, time_in):
+        day_of_week = 'MTWRFSU'[time_in.tm_wday] # tm_wday is in [0, 6], 0 is monday 6 is sunday
+        time_in.tm_wday = 0 # ensure that comparison operators don't consider the day of the week
+        for session in self.schedule.class_list:
+            # do we go to this class today?
+            if session['days'].find(day_of_week) > 0:
+                # if so, is this time within the time that we are in class?
+                if time_in < session['end_time'] and time_in > session['start_time']:
+                    return True
+        return False
 
 class OscarCourseSchedule:
     def __init__(self, location_list):
@@ -151,17 +193,6 @@ class OscarCourseSchedule:
             out_dict['location'] = entry['location']
             out_dict['days'] = entry['day']
             self.class_list.append(out_dict)
-
-    def is_in_class_at_time(self, time_in):
-        day_of_week = 'MTWRFSU'[time_in.tm_wday] # tm_wday is in [0, 6], 0 is monday 6 is sunday
-        time_in.tm_wday = 0 # ensure that comparison operators don't consider the day of the week
-        for session in self.class_list:
-            # do we go to this class today?
-            if session['days'].find(day_of_week) > 0:
-                # if so, is this time within the time that we are in class?
-                if time_in < session['end_time'] and time_in > session['start_time']:
-                    return True
-        return False
         
 
 def get_courses_by_department(department):
