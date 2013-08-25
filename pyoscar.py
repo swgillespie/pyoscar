@@ -171,8 +171,8 @@ class OscarCourseSection:
         return out_list
 
     def is_in_class_at_time(self, time_in):
-        day_of_week = 'MTWRFSU'[time_in.tm_wday] # tm_wday is in [0, 6], 0 is monday 6 is sunday
-        time_in.tm_wday = 0 # ensure that comparison operators don't consider the day of the week
+        day_of_week = 'UMTWRFS'[time_in.tm_wday] # tm_wday is in [0, 6], 0 is sunday 6 is saturday
+        time_in_without_weekday = time.strptime('{}:{}'.format(time_in.tm_hour, time_in.tm_min), '%H:%M') 
         for session in self.schedule.class_list:
             # do we go to this class today?
             if session['days'].find(day_of_week) > 0:
